@@ -17,7 +17,7 @@ class Reviews_scraper:
     def populate_database(self):
         print('populating database...')
         reviews={'name':[],'brand':[],'users_score':[],'score':[],'product_id':[],'brand_id':[],'SRP':[]}
-        N=150
+        N=150   
         MAX_API_RESULTS=30
         for i in range(1,N,MAX_API_RESULTS):
             if i+MAX_API_RESULTS<N:
