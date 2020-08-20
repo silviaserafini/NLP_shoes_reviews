@@ -1,6 +1,5 @@
 import tensorflow as tf
 from utils import text_clean, assign_label, encode_labels
-import nltk
 import pickle
 from numpy import dot
 from numpy.linalg import norm
@@ -22,7 +21,6 @@ class TSH_traier:
     self.model = []
 
   def train(self):
-    nltk.download('averaged_perceptron_tagger')
     self.build_model()
     self.compile_model()
     self.train_model()
@@ -53,7 +51,6 @@ class TSH_traier:
   def build_model(self):
       print('building the model...')
       #loadin the model
-      #embed = hub.load("https://tfhub.dev/google/nnlm-en-dim128/2")
       self.model = tf.keras.Sequential([
         hub.KerasLayer('https://tfhub.dev/google/nnlm-en-dim128/2', trainable=True, input_shape=[], dtype=tf.string),
         tf.keras.layers.Dense(128, activation='relu'),
