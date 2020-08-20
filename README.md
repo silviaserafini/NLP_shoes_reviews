@@ -1,5 +1,4 @@
 # Shoes Reviews class prediction with differnt Natural Language Processing models.
-model building to predict the sentiment of a running shoe review 
 
 
 In this project I build two different models to predict the sentiment of a running shoe review.
