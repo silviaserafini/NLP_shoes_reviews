@@ -53,7 +53,7 @@ class TSH_traier:
   def build_model(self):
       print('building the model...')
       #loadin the model
-      embed = hub.load("https://tfhub.dev/google/nnlm-en-dim128/2")
+      #embed = hub.load("https://tfhub.dev/google/nnlm-en-dim128/2")
       self.model = tf.keras.Sequential([
         hub.KerasLayer('https://tfhub.dev/google/nnlm-en-dim128/2', trainable=True, input_shape=[], dtype=tf.string),
         tf.keras.layers.Dense(128, activation='relu'),
