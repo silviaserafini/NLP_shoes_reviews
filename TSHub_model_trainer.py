@@ -1,5 +1,5 @@
 import tensorflow as tf
-from utils import text_clean, assign_label, encode_labels
+from utils import text_clean, assign_label, encode_labels, TSHUB_decode_label
 import pickle
 from numpy import dot
 from numpy.linalg import norm
@@ -8,17 +8,30 @@ import pandas as pd
 import tensorflow_hub as hub
 import json
 from sklearn.model_selection import train_test_split
-from keras.models import Sequential
+from keras.models import Sequential, sload_model
+from keras.models import model_from_json
 from keras.layers import Dense, Dropout
+#from tensorflow.keras.models import load_model
 
-class TSH_traier:
 
-  def __init__(self,data_to_load_path, model_save_path):
+class TSH_trainer:
+
+  def __init__(self,data_to_load_path, model_save_path, trained_model_path):
     self.data_to_load_path = data_to_load_path
     self.model_save_path = model_save_path
     self.total_shoes_df = pd.read_pickle(self.data_to_load_path)
     self.texts = []
-    self.model = []
+    if trained_model_path:
+      json_file = open(trained_model_path+'.json', 'r')
+      loaded_model_json = json_file.read()
+      json_file.close()
+      self.model = model_from_json(loaded_model_json)
+      # load weights into new model
+      self.model.load_weights(trained_model_path+'.h5')
+      print("Loaded model from disk")
+    else:
+        self.model = []
+
 
   def train(self):
     self.build_model()
@@ -26,17 +39,14 @@ class TSH_traier:
     self.train_model()
 
   def test_train_split(self):
-
-    cos_sim = lambda a, b: dot(a, b)/(norm(a)*norm(b))
     self.total_shoes_df['content'] = self.total_shoes_df['content'].apply(text_clean)
     self.texts = list(self.total_shoes_df['content'])
     DIM_TRAIN=round(len(self.texts)*0.8)
     self.total_shoes_df['label'] = self.total_shoes_df['score'].apply(assign_label)
     self.total_shoes_df['encoded_labels'] = self.total_shoes_df['label'].apply(encode_labels)
     #test and train set
-    
     y = np.array(self.total_shoes_df['encoded_labels'])
-    y = y.reshape(13497,)
+    y = y.reshape(y.shape[0],)
     print('y_len=',y.shape,'texts_len=',len(self.texts))
     df = pd.DataFrame({'text': self.texts,'labels':y})
     datasetR = tf.data.Dataset.from_tensor_slices(df['text'].values)
@@ -52,13 +62,13 @@ class TSH_traier:
       print('building the model...')
       #loadin the model
       self.model = tf.keras.Sequential([
-        hub.KerasLayer('https://tfhub.dev/google/nnlm-en-dim128/2', trainable=True, input_shape=[], dtype=tf.string),
-        tf.keras.layers.Dense(128, activation='relu'),
+        hub.KerasLayer('https://tfhub.dev/google/nnlm-en-dim128/2', trainable = True, input_shape = [], dtype = tf.string),
+        tf.keras.layers.Dense(128, activation = 'relu'),
         tf.keras.layers.Dropout(0.2),
-        tf.keras.layers.Dense(64, activation='relu'),
+        tf.keras.layers.Dense(64, activation = 'relu'),
         tf.keras.layers.Dropout(0.2),
-        tf.keras.layers.Dense(32, activation='relu'),
-        tf.keras.layers.Dense(1, activation='relu'),
+        tf.keras.layers.Dense(32, activation = 'relu'),
+        tf.keras.layers.Dense(3, activation = 'relu'),
       ])
 
   def compile_model(self):
@@ -70,16 +80,19 @@ class TSH_traier:
     train_dataset, test_dataset = self.test_train_split()
     self.model.fit(train_dataset , validation_data = test_dataset, validation_steps=30, epochs=10)
     self.save_model()
+  
+  def predict(self, review):
+    review_list = np.array(review)
+    review_list = tf.expand_dims(review_list,axis=0)
+    loaded_model = load_model(self.model_save_path, compile = False)
+    prediction = loaded_model.predict(review_list)
+    result = TSHUB_decode_label(prediction)
+    print('this is the prediction:', result)
+    return result
+    
 
   def save_model(self):
-      print('saving the model...')
-      moment = time.localtime()
-      model_json = self.model.to_json()
-      with open( self.model_save_path, "w") as json_file:
-          json_file.write(model_json)
-      # serialize weights to HDF5
-      model.save_weights(self.model_save_path[:-5])
-      print("Saved model to disk")
+      model.save(self.model_save_path)
       print('done!:-)')
 
 

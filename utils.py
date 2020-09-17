@@ -15,8 +15,21 @@ import string
 import pandas as pd
 import numpy as np
 import nltk.sentiment.vader
+from tensorflow.keras.preprocessing.text import Tokenizer
+from keras.preprocessing import sequence
+
 import requests
 
+
+def tokenize(text):
+    tokenizer = Tokenizer()
+    tokenizer.fit_on_texts(text)
+    sequences = tokenizer.texts_to_sequences(text)
+    MAX_SEQUENCE_LENGTH = 50
+    padded_sequences = sequence.pad_sequences(sequences, maxlen=MAX_SEQUENCE_LENGTH)
+    
+    word_index = tokenizer.word_index
+    return padded_sequences, word_index
 
 def remove_text_inside_brackets(text, brackets="()[]"):
     count = [0] * (len(brackets) // 2) # count open/close brackets
@@ -102,6 +115,10 @@ def assign_label(x):
         return 'avarage'
     if x<=60:
         return 'low'
+
+def decode_label(x):
+    label={0:'top',1:'avarage', 2:'low'}
+    return label[x]
     
 def precision(y_true, y_pred): 
     true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1))) 
@@ -117,4 +134,10 @@ def recall(y_true, y_pred):
 
 def encode_labels(x):
     label={'top':0,'avarage':1, 'low':2}
-    return label[x]    
+    return label[x]
+
+def TSHUB_decode_label(x):
+    if round(x)==0:
+        return 'top'
+    else:
+        return 'low'

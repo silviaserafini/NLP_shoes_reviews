@@ -1,5 +1,5 @@
 from keras.preprocessing import sequence
-from utils import assign_label, encode_labels, precision, recall
+from utils import assign_label, encode_labels, precision, recall, decode_label, tokenize
 import tensorflow as tf
 #import nltk
 import tensorflow_datasets as tfds
@@ -8,8 +8,9 @@ import pandas as pd
 import numpy as np
 import json
 from keras.models import Sequential
+from tensorflow.keras.models import load_model
 from keras.layers import Dense, Dropout, Embedding, LSTM, Bidirectional
-from tensorflow.keras.preprocessing.text import Tokenizer
+#from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 import pickle
 
@@ -36,19 +37,20 @@ class Glove_trainer:
         self.build_LSTM_model()
         self.train_LSTM_model()
 
-    def tokenize(self):
+    '''def tokenize(self):
         tokenizer = Tokenizer()
         tokenizer.fit_on_texts(self.texts)
         sequences = tokenizer.texts_to_sequences(self.texts)
         self.padded_sequences = sequence.pad_sequences(sequences, maxlen = self.MAX_SEQUENCE_LENGTH)
-        self.word_index = tokenizer.word_index
+        self.word_index = tokenizer.word_index'''
 
     def test_train_split(self):
         self.total_shoes_df['label'] = self.total_shoes_df['score'].apply(assign_label)
         y = self.total_shoes_df['label'].apply(encode_labels)
+        y = tf.one_hot(y, 3)
         X = self.padded_sequences
         #test train split
-        X_train, X_test, Y_train, Y_test = train_test_split(X, y, test_size=0.30, random_state=42)
+        X_train, X_test, Y_train, Y_test = train_test_split(X, y.numpy(), test_size=0.30, random_state=42)
         VAL=round(0.8*len(X_test))
         print('X_test_dim',len(X_test),'Y_test_dim',len(Y_test),
       'X_train_dim',len(X_train),'Y_train_dim',len(Y_train))
@@ -92,7 +94,7 @@ class Glove_trainer:
         self.model.add(embedding_layer)
         self.model.add(LSTM(64))
         self.model.add(Dropout(0.50))
-        self.model.add(Dense(1, activation = 'sigmoid'))
+        self.model.add(Dense(3, activation = 'sigmoid'))
                 
     def train_LSTM_model(self):
         print('model compiling...')       
@@ -111,10 +113,18 @@ class Glove_trainer:
         self.save()
 
     def save(self):
-        moment = time.localtime()
-        model_json = self.model.to_json()
-        with open( self.model_save_path, "w") as json_file:
-            json_file.write(model_json)
-        # serialize weights to HDF5
-        model.save_weights(self.model_save_path[:-5])
+        model.save(self.model_save_path)
         print("Saved model to disk")
+
+    def predict(self,review):
+        custom_objects = {}
+        custom_objects['precision'] = precision
+        custom_objects['recall'] = recall
+        loaded_model = load_model(self.model_save_path, custom_objects=custom_objects,compile = False)
+        review_list =[review]
+        tokenized, word_index = tokenize(review_list)
+        prediction = loaded_model.predict(tokenized)
+        result = decode_label(np.argmax(prediction))
+        print('this is the prediction:', result)
+        return result
+
